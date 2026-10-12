@@ -1,0 +1,77 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+  <meta name="description" content="Prepare for top lane with matchup evidence and a practical coaching plan.">
+  <title>LaneCoach — Own your lane</title>
+  <link rel="icon" href="/static/favicon.svg" type="image/svg+xml">
+  <link rel="stylesheet" href="/static/styles.css"><script src="/static/app.js" defer></script>
+</head>
+<body>
+  <aside class="sidebar">
+    <a class="brand" href="#"><span class="brand-mark">L</span><span>Lane<span class="accent">Coach</span><small>TOP LANE INTELLIGENCE</small></span></a>
+    <nav aria-label="Main navigation">
+      <button class="nav active" data-view="explore"><span>◈</span> Matchup explorer</button>
+      <button class="nav" data-view="collect"><span>↓</span> Collect games</button>
+      <button class="nav" data-view="settings"><span>⚙</span> Connections</button>
+    </nav>
+    <div class="sidebar-bottom"><span class="live-dot"></span> Your local workspace<p>Real games. Clear evidence.<br>A better plan for your next lane.</p></div>
+  </aside>
+  <main>
+    <header class="topbar"><span>WORKSPACE <span class="slash">/</span> <span id="breadcrumb">Matchup explorer</span></span><span class="pill">RANKED SOLO / DUO</span></header>
+    <div id="notice" role="status" aria-live="polite" hidden></div>
+    <section id="explore-view" class="view">
+      <div class="page-heading"><div><p class="eyebrow">PREPARE WITH PURPOSE</p><h1>Own your next lane<span class="accent">.</span></h1><p>Explore the matchup. Understand the evidence. Build your plan.</p></div><button class="secondary" id="refresh">↻ Refresh data</button></div>
+      <div class="overview" id="overview"><div class="metric"><span>Collected games</span><strong>—</strong></div></div>
+      <form id="search-form" class="search-card">
+        <label>Your champion<input id="champion" name="champion" list="champions" placeholder="Choose a champion" required autocomplete="off" maxlength="100"></label>
+        <button type="button" id="swap" class="swap" aria-label="Swap champions">⇄</button>
+        <label>Opponent<input id="opponent" name="opponent" list="champions" placeholder="Who are you facing?" required autocomplete="off" maxlength="100"></label>
+        <label>Patch<select id="patch"><option value="">All collected patches</option></select></label>
+        <button class="primary" type="submit">Explore matchup <span>→</span></button>
+      </form>
+      <datalist id="champions"></datalist>
+      <div id="library">
+        <div class="section-heading"><div><h2>Your matchup library</h2><p>Start with a pair you’ve actually collected.</p></div><label class="compact">Filter champion<input id="library-filter" list="champions" placeholder="All champions" autocomplete="off"></label></div>
+        <div id="pair-grid" class="pair-grid"><p class="muted">Loading your games…</p></div>
+        <button class="secondary" id="more-pairs" hidden>Show more matchups</button>
+        <p class="footnote" id="library-count">Sorted by sample size · Game win rates reflect this dataset, not the full player population.</p>
+      </div>
+      <div id="report" hidden>
+        <button id="back-library" class="text-button">← Back to your library</button>
+        <div class="matchup-heading" id="matchup-heading"></div>
+        <div class="report-actions"><button class="secondary" id="fetch-timelines">↓ Fetch lane timelines</button><a class="secondary" id="export" href="#">Export games CSV</a><span class="muted">Fetch up to 20 uncached games at a time.</span></div>
+        <div class="report-tabs" role="tablist" aria-label="Matchup report">
+          <button role="tab" aria-selected="true" class="selected" data-tab="overview">Overview</button>
+          <button role="tab" aria-selected="false" data-tab="builds">Runes & builds</button>
+          <button role="tab" aria-selected="false" data-tab="games">Game evidence</button>
+          <button role="tab" aria-selected="false" data-tab="coach">AI coach <span class="tiny-badge">✦</span></button>
+        </div>
+        <section id="overview-tab" class="tab-panel" role="tabpanel">
+          <div class="report-metrics" id="report-metrics"></div>
+          <div class="two-column"><article class="panel"><div class="section-heading"><h2>Lane checkpoints</h2><span class="pill">TIMELINE EVIDENCE</span></div><div id="lane-stats"></div><p class="footnote">Last frame at or up to 90 seconds before each checkpoint. Positive differences favor your champion.</p></article><article class="panel"><h2>What the data says</h2><div id="observations"></div></article></div>
+          <article class="panel"><h2>End-of-game comparison</h2><div class="table-wrap"><table id="comparison"></table></div></article>
+          <div class="evidence-note" id="warnings"></div>
+        </section>
+        <section id="builds-tab" class="tab-panel" role="tabpanel" hidden><div class="two-column" id="builds"></div><p class="evidence-note">These are recorded setups, not recommended or statistically proven builds. Final items include trinkets and do not show purchase order. Labels and icons use the cached Data Dragon version.</p></section>
+        <section id="games-tab" class="tab-panel" role="tabpanel" hidden><article class="panel"><h2>Recorded games</h2><p class="muted">Select a game to inspect its early gold, CS, and event evidence. Up to 100 games shown.</p><div class="table-wrap"><table id="games-table"></table></div></article></section>
+        <section id="coach-tab" class="tab-panel" role="tabpanel" hidden><article class="panel coach-panel"><div class="section-heading"><div><p class="eyebrow">✦ YOUR PRACTICE PARTNER</p><h2>A plan for your next game</h2></div><span id="ai-badge" class="pill">AI COACH</span></div><p class="muted">Coaching uses this report and available champion ability references. General practice advice is separated from observed evidence.</p><form id="coach-form"><label>What would you like to focus on?<textarea id="coach-question" rows="3" maxlength="2000" placeholder="How should I approach farming, trades, and recalls in this matchup?">Help me prepare for this matchup with three practical goals for my next game.</textarea></label><button class="primary" id="coach-submit" type="submit">✦ Generate coaching plan</button></form><p class="footnote">Sends the aggregate report and your question to OpenAI. API usage may incur charges. Player identifiers are excluded.</p><div id="coach-output" class="coach-output" aria-live="polite"><p class="muted">Your coaching plan will appear here.</p></div><p id="coach-provenance" class="footnote"></p><button id="copy-plan" class="secondary" hidden>Copy plan</button></article></section>
+      </div>
+    </section>
+    <section id="collect-view" class="view" hidden>
+      <div class="page-heading"><div><p class="eyebrow">BUILD YOUR EVIDENCE</p><h1>More games. More context.</h1><p>Collect a player’s ranked history. LaneCoach extracts each Top-vs-Top matchup.</p></div></div>
+      <div class="two-column"><article class="panel"><h2>Collect ranked games</h2><form id="collect-form" class="stack-form"><label>Game name<input name="game_name" placeholder="Akaza" required maxlength="100"></label><label>Riot ID tag<input name="tag_line" placeholder="HONOR (without #)" required maxlength="100"></label><label>Routing region<select name="region"><option value="americas">Americas — NA, BR, LAN, LAS</option><option value="europe">Europe — EUW, EUNE, TR, RU, ME</option><option value="asia">Asia — KR, JP</option><option value="sea">SEA — OCE, Southeast Asia</option></select></label><div class="two-column"><label>Games to examine<input name="count" type="number" min="1" max="1000" value="100" required></label><label>History offset<input name="start" type="number" min="0" max="100000" value="0" required></label></div><button class="primary" type="submit">↓ Start collection</button></form></article><article class="panel"><p class="eyebrow">HOW IT WORKS</p><h2>A dataset you can trace</h2><ol class="steps"><li><strong>Find a player</strong><p>Use your Riot ID or an active Top player’s ID. You don’t need to play new games.</p></li><li><strong>Collect ranked history</strong><p>Only Solo/Duo games with an identified Top on each team are saved. Existing records are skipped.</p></li><li><strong>Inspect a matchup</strong><p>Open a pair in the explorer, then fetch timelines for early-lane snapshots.</p></li></ol><div class="evidence-note">To examine the next 100 older games, set the offset to 100. A tag alone doesn’t identify the player’s routing region.</div></article></div>
+      <article class="panel"><div class="section-heading"><h2>Collection & activity</h2><span class="pill">SAVED LOCALLY</span></div><div id="jobs"></div></article>
+    </section>
+    <section id="settings-view" class="view" hidden>
+      <div class="page-heading"><div><p class="eyebrow">YOUR WORKSPACE</p><h1>Connections & data</h1><p>Credentials stay on your computer. Your games stay in your database.</p></div></div>
+      <div class="two-column"><article class="panel"><h2>Riot Games API</h2><div id="riot-status"></div><p>Used for ranked history and timelines. Set <code>RIOT_API_KEY</code> in <code>backend/.env</code> and restart the app.</p><p class="muted">Development keys expire after 24 hours. Never paste a key into chat or commit it.</p></article><article class="panel"><h2>OpenAI coaching</h2><div id="openai-status"></div><p>Set <code>OPENAI_API_KEY</code> in <code>backend/.env</code> and restart. Set <code>OPENAI_MODEL</code> to override the model.</p><p class="muted">Reports work without this connection. A configured key still needs valid API access and billing.</p></article></div>
+      <article class="panel"><div class="section-heading"><div><h2>Champion, item & rune references</h2><p id="catalog-status" class="muted">Checking cached references…</p></div><button class="secondary" id="refresh-catalog">↻ Refresh Data Dragon</button></div><p>Public Riot assets provide readable names and portraits. Stored games still work if references are unavailable. AI ability references use the selected patch when available.</p></article>
+      <article class="panel"><h2>About your evidence</h2><p>LaneCoach records final game outcomes and optional timeline snapshots. It does not know a player’s rank, wave state, or the cause of a lead. Selected-player samples can be small and biased. AI advice is a practice aid, not a guaranteed matchup solution.</p><p class="muted">LaneCoach is an independent project and is not endorsed by Riot Games. League of Legends and its assets belong to Riot Games.</p></article>
+    </section>
+    <footer>LaneCoach <span>Built for the long lane.</span><span>Independent project · Not endorsed by Riot Games</span></footer>
+  </main>
+  <dialog id="match-dialog"><button class="dialog-close" id="close-dialog" aria-label="Close match detail">×</button><div id="match-detail"></div></dialog>
+  <noscript>This app requires JavaScript to explore your locally stored matches.</noscript>
+</body>
+</html>

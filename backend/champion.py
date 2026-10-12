@@ -9,8 +9,8 @@ def get_latest_version():
     return response.json()[0]
 
 
-def get_champion(champion_name):
-    version = get_latest_version()
+def get_champion(champion_name, version=None):
+    version = version or get_latest_version()
 
     # Get the list of champions
     champions_url = (
@@ -65,11 +65,12 @@ def print_champion(champion):
         print(f"  {spell['description']}")
 
 
-name = input("Enter a champion: ")
+if __name__ == "__main__":
+    name = input("Enter a champion: ")
 
-champion = get_champion(name)
+    champion = get_champion(name)
 
-if champion:
-    print_champion(champion)
-else:
-    print("Champion not found.")
+    if champion:
+        print_champion(champion)
+    else:
+        print("Champion not found.")

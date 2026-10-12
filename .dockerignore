@@ -1,0 +1,15 @@
+.git
+backend/etl-seeds.json
+**/.env
+**/.env.*
+**/venv
+**/.venv
+**/node_modules
+**/.next
+**/.cache
+**/__pycache__
+**/*.sqlite3*
+**/*.sqlite*
+**/*.db
+**/*.db-*
+artifacts
