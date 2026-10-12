@@ -9,6 +9,6 @@ Checked on October 12, 2026:
 - Docker Desktop: API and web images built; PostgreSQL 17, FastAPI, and Next.js started successfully through Compose.
 - Live OpenAI acceptance: a Jungle guide and contextual follow-up each used three retrieved references. Four conversation messages persisted in PostgreSQL and were restored by the real browser after reload. Two paid API requests were made for this check.
 - Live Riot ETL: one ranked match inserted, ten player appearances across all five roles; repeated import returned one duplicate and zero new inserts. This is a functional check, not a statistically useful dataset.
-- GitHub Actions configuration is present but has not run on GitHub. No changes have been pushed.
+- Source and remaining-work notes have been published to the public GitHub repository on `main` and `feature/match-collector`. GitHub Actions results are available on the repository's [Actions page](https://github.com/AriGamingYT108/lanecoach/actions); local validation does not imply those remote checks passed.
 
 The app has been verified locally; public hosting and GitHub publication are separate steps. Generated jungle advice is not measured path telemetry and observed rune outcomes do not establish optimality.
