@@ -114,6 +114,8 @@ Offline tests use isolated synthetic fixtures. Native PostgreSQL integration req
 
 ## Portfolio
 
+See [publication notes and remaining work](docs/publication-notes.md), including PostgreSQL data coverage, coaching knowledge, database operations, and public-demo requirements.
+
 See [résumé implementation audit](docs/resume.md) for accurate wording. Source publication and a hosted demo are separate steps. No scale, reliability, path extraction, or deployment claim is implied. Secrets, databases, environments, private seeds, and generated artifacts are ignored.
 
 League of Legends assets belong to Riot Games. LaneCoach is an independent portfolio project.
