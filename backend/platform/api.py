@@ -120,6 +120,12 @@ def create_app(store=None, catalog=None, coach_fn=answer):
             raise HTTPException(422, "Invalid analytics filter")
         return store.analytics(catalog.resolve(champion), role, catalog.resolve(opponent) if opponent else None, patch, minimum)
 
+    @app.get('/api/coverage')
+    def data_coverage():
+        ready()
+        from .coverage import coverage
+        return coverage(store)
+
     @app.get("/api/sessions/{session_id}")
     def session(session_id: str):
         ready()

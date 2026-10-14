@@ -51,7 +51,14 @@ def answer(store, catalog, profile, question, history=None, transport=None):
     if not key:
         raise CoachingError("Add OPENAI_API_KEY to backend/.env and restart the API.")
     champion_context(store, catalog, profile)
-    sources = retrieve(store, question, profile)
+    retrieval_profile = dict(profile)
+    # Default champion references to the current catalog patch rather than mixing
+    # historical mechanics. Explicit historical requests retain their patch.
+    catalog_data = getattr(catalog, 'data', None)
+    version = catalog_data.get('version') if isinstance(catalog_data, dict) else None
+    if not retrieval_profile.get('patch') and isinstance(version, str):
+        retrieval_profile['patch'] = '.'.join(version.split('.')[:2])
+    sources = retrieve(store, question, retrieval_profile)
     analytics = store.analytics(profile["champion"], profile["role"], profile.get("opponent"), profile.get("patch")) if profile.get("champion") else None
     context = {"profile": profile, "question": question,
                "conversation": [{"role": m["role"], "content": m["content"][:5000]} for m in (history or [])[-12:]],

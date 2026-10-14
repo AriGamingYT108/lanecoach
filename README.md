@@ -53,6 +53,8 @@ Set `DATABASE_URL` in `backend/.env` for another PostgreSQL instance. Its defaul
 
 ## Optional ETL
 
+For migration history, bounded account discovery, coverage reports, full champion-reference sync, and verified local backups, see [PostgreSQL data and operations](docs/database-operations.md).
+
 Riot match discovery needs seed accounts, but the coach does not require personal match collection. Create the ignored `backend/etl-seeds.json` locally:
 
 ```json

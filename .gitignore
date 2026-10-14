@@ -20,3 +20,5 @@ node_modules/
 *.tsbuildinfo
 backend/etl-seeds.json
 .postgres/
+backups/
+*.dump

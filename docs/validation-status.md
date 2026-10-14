@@ -1,5 +1,7 @@
 # Local validation status
 
+The subsequent October 14 PostgreSQL improvements and dataset measurements are documented in [database progress](database-progress.md). The results below describe the initial October 12 release.
+
 Checked on October 12, 2026:
 
 - Python suite: all 42 passed on Windows and inside the Linux API container, including native PostgreSQL analytics and full-text retrieval against a separate test database.

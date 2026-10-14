@@ -13,3 +13,5 @@ backend/etl-seeds.json
 **/*.db
 **/*.db-*
 artifacts
+backups
+**/*.dump

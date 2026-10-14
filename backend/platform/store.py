@@ -3,12 +3,13 @@ import os
 from datetime import datetime, timezone
 from uuid import uuid4
 
-from sqlalchemy import (JSON, Boolean, Column, DateTime, Float, ForeignKey, Integer,
+from sqlalchemy import (JSON, Boolean, CheckConstraint, Column, DateTime, Float, ForeignKey, Integer,
                         MetaData, String, Table, Text, create_engine, text)
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.dialects.postgresql import insert as postgres_insert
 from sqlalchemy.dialects.sqlite import insert as sqlite_insert
 from sqlalchemy.pool import StaticPool
+from .migrations import CHECKS, migrate
 
 metadata = MetaData()
 json_type = JSON().with_variant(JSONB, "postgresql")
@@ -21,7 +22,16 @@ players = Table("lc_players", metadata,
     Column("champion", String(80), nullable=False), Column("opponent", String(80)),
     Column("win", Boolean, nullable=False), Column("keystone", Integer),
     Column("kills", Integer), Column("deaths", Integer), Column("assists", Integer),
-    Column("cs", Integer), Column("gold", Integer), Column("payload", json_type, nullable=False))
+    Column("cs", Integer), Column("gold", Integer), Column("payload", json_type, nullable=False),
+    *[CheckConstraint(expression, name=name) for name, expression in CHECKS.items()])
+ingestion_runs = Table('lc_ingestion_runs', metadata,
+    Column('id', String(40), primary_key=True), Column('region', String(20), nullable=False),
+    Column('source_hash', String(64), nullable=False), Column('started', DateTime(timezone=True), nullable=False),
+    Column('finished', DateTime(timezone=True)), Column('status', String(20), nullable=False),
+    Column('requested', Integer, nullable=False), Column('counts', json_type, nullable=False), Column('error_code', String(40)))
+match_sources = Table('lc_match_sources', metadata,
+    Column('match_id', String(80), ForeignKey('lc_matches.match_id'), primary_key=True),
+    Column('run_id', String(40), ForeignKey('lc_ingestion_runs.id'), primary_key=True))
 documents = Table("lc_documents", metadata,
     Column("id", String(150), primary_key=True), Column("title", Text, nullable=False),
     Column("body", Text, nullable=False), Column("role", String(20)), Column("champion", String(80)),
@@ -47,11 +57,12 @@ class Store:
         self.engine = create_engine(url, **options)
 
     def initialize(self):
-        metadata.create_all(self.engine)
-        if self.engine.dialect.name == "postgresql":
-            with self.engine.begin() as connection:
-                connection.execute(text("CREATE INDEX IF NOT EXISTS lc_docs_search ON lc_documents USING GIN (to_tsvector('english', title || ' ' || body))"))
-                connection.execute(text("CREATE INDEX IF NOT EXISTS lc_players_pair ON lc_players(role, champion, opponent)"))
+        with self.engine.begin() as connection:
+            if self.engine.dialect.name == 'postgresql':
+                connection.execute(text('SELECT pg_advisory_xact_lock(74392610)'))
+            metadata.create_all(connection)
+            if self.engine.dialect.name == 'postgresql':
+                migrate(connection)
 
     def upsert_document(self, document):
         insert = postgres_insert if self.engine.dialect.name == "postgresql" else sqlite_insert
@@ -61,6 +72,10 @@ class Store:
                 set_={key: getattr(statement.excluded, key) for key in document if key != "id"}))
 
     def save_match(self, match, extracted):
+        from .etl import extract_players
+        validated = extract_players(match)
+        if not validated or extracted != validated:
+            raise ValueError('Match data does not match validated ranked participants')
         insert = postgres_insert if self.engine.dialect.name == "postgresql" else sqlite_insert
         with self.engine.begin() as connection:
             statement = insert(matches).values(match_id=match["metadata"]["matchId"],
@@ -70,6 +85,36 @@ class Store:
             if extracted:
                 connection.execute(players.insert(), extracted)
         return True
+
+    def start_run(self, region, source_hash, requested):
+        run_id = uuid4().hex
+        with self.engine.begin() as connection:
+            connection.execute(ingestion_runs.insert().values(id=run_id, region=region, source_hash=source_hash,
+                requested=requested, started=datetime.now(timezone.utc), status='running', counts={}))
+        return run_id
+
+    def finish_run(self, run_id, counts, status='completed', error_code=None):
+        with self.engine.begin() as connection:
+            connection.execute(ingestion_runs.update().where(ingestion_runs.c.id == run_id).values(
+                finished=datetime.now(timezone.utc), counts=counts, status=status, error_code=error_code))
+
+    def checkpoint_run(self, run_id, counts):
+        with self.engine.begin() as connection:
+            connection.execute(ingestion_runs.update().where(ingestion_runs.c.id == run_id).values(counts=counts))
+
+    def record_source(self, match_id, run_id):
+        insert = postgres_insert if self.engine.dialect.name == 'postgresql' else sqlite_insert
+        with self.engine.begin() as connection:
+            connection.execute(insert(match_sources).values(match_id=match_id, run_id=run_id).on_conflict_do_nothing())
+
+    def discover_accounts(self, region, limit=50):
+        # Private PUUIDs remain in memory; never return them through coverage APIs.
+        with self.engine.connect() as connection:
+            rows = connection.execute(matches.select().join(match_sources, matches.c.match_id == match_sources.c.match_id)
+                .join(ingestion_runs, ingestion_runs.c.id == match_sources.c.run_id)
+                .where(ingestion_runs.c.region == region).order_by(ingestion_runs.c.started.desc()).limit(limit)).mappings()
+            return list(dict.fromkeys(p['puuid'] for row in rows for p in row['payload'].get('info', {}).get('participants', [])
+                if isinstance(p, dict) and isinstance(p.get('puuid'), str) and p['puuid']))
 
     def contains(self, match_id):
         with self.engine.connect() as connection:
