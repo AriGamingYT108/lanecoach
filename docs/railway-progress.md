@@ -17,7 +17,7 @@ All 64 local backend tests pass, including native PostgreSQL checks, in Windows 
 Still pending:
 
 - Connect Railway and provision Postgres/API/web in the user's account, configure private runtime secrets and hosting spending controls, and verify an actual HTTPS deployment.
-- Approve the next GitHub push if deploying from GitHub. No new source is pushed without that approval.
+- Configure Railway's GitHub integration against the published `main` branch and verify the service root/config paths. The deployment source is now published; Railway provisioning and cloud verification are still pending.
 - Populate the cloud database: the local 97-match evidence and private conversations are not automatically copied. A fresh deployment can coach without match statistics; cloud collection or a deliberate match/reference-only migration is separate.
 - Perform live cloud coaching and isolated-browser acceptance after deployment. Local tests do not verify Railway itself.
 

@@ -11,7 +11,7 @@ This release is a locally verified, all-role League of Legends coaching portfoli
 
 ## Still to do
 
-Railway deployment and public-demo isolation/usage controls are prepared locally; see [Railway preparation](railway-progress.md). Account connection and a verified cloud launch remain pending.
+Railway deployment and public-demo isolation/usage controls are implemented and published; see [Railway preparation](railway-progress.md). Account connection and a verified cloud launch remain pending.
 
 Local database improvements since the initial publication are tracked in [PostgreSQL data and operations](database-operations.md). They include migration history, validated player constraints, ingestion runs and discovery provenance, measured coverage, full champion-reference sync, and a verified local backup/restore workflow. See the dated validation notes for actual dataset counts; collector limits alone do not imply coverage.
 
@@ -22,7 +22,7 @@ See [October 14 database progress](database-progress.md) for the verified 97-mat
 - **Add timeline evidence:** ingest and validate available position snapshots, gold/CS progression, item purchases, and objective events. Generated jungle-routing suggestions are not measured movement paths.
 - **Database operations:** configure automatic backup scheduling, retention, encryption, off-device storage, and production monitoring. Local migrations, coverage reporting, and backup/restore verification are implemented; those do not constitute managed production disaster recovery.
 - **Public hosting:** deploy a live demo only after adding authentication, usage limits, and protection against paid-API abuse. The current stack is intended for local use.
-- **GitHub verification:** the initial publication is public and its Actions checks passed. Local database improvements still require a separately approved push and another remote CI run.
+- **GitHub verification:** the repository is public, and the database/deployment improvements have been pushed. Check the latest GitHub Actions results before deploying; successful CI is separate from a verified Railway launch.
 - **Analytics validity:** show sample sizes and collection limitations. Rune associations do not establish optimal choices, and opponent outcomes do not establish universal counters.
 
 These are planned improvements, not completed features. Credentials, local databases, and private seed files are excluded from the repository. See [validation status](validation-status.md) and [accurate résumé wording](resume.md).

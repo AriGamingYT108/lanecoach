@@ -44,6 +44,6 @@ These are selected accounts connected through matches, not a random sample. Many
 - Timeline evidence ingestion and validation; current routing advice remains generated, not reconstructed telemetry.
 - Automatic backup scheduling, retention, encryption, off-device storage, production monitoring, and large-dataset migration/backup planning.
 - Authentication and paid-API abuse controls before public hosting.
-- Approval for the next GitHub push, followed by remote CI verification. The earlier public release does not yet contain these local improvements.
+- Railway provisioning and live cloud verification. Database improvements have now been pushed with the deployment implementation; check the latest remote CI results before launching.
 
 Usage and limitations: [database operations](database-operations.md). Private match data and backup files are ignored and are not part of the source publication.
