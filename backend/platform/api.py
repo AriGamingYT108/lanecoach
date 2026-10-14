@@ -1,5 +1,6 @@
 """FastAPI coaching service with a PostgreSQL-backed conversation and retrieval store."""
 import os
+import hmac
 from contextlib import asynccontextmanager
 from pathlib import Path
 from threading import BoundedSemaphore
@@ -18,6 +19,7 @@ from backend.coaching import CoachingError
 from .coach import answer
 from .knowledge import seed_knowledge
 from .store import Store
+from .demo import Demo, COOKIE
 
 Role = Literal["TOP", "JUNGLE", "MIDDLE", "BOTTOM", "UTILITY"]
 
@@ -43,6 +45,7 @@ def create_app(store=None, catalog=None, coach_fn=answer):
     load_dotenv(Path(__file__).resolve().parents[1] / ".env")
     store = store or Store()
     catalog = catalog or Catalog()
+    demo = Demo()
     gate = BoundedSemaphore(2)
 
     @asynccontextmanager
@@ -59,15 +62,24 @@ def create_app(store=None, catalog=None, coach_fn=answer):
     app = FastAPI(title="LaneCoach", description="All-role coaching, conversation and evidence-backed retrieval", version="2.0.0", lifespan=lifespan)
     app.state.ready = False
     app.state.store = store
-    app.add_middleware(TrustedHostMiddleware, allowed_hosts=["localhost", "127.0.0.1", "api", "testserver"])
+    hosts = ["localhost", "127.0.0.1", "api", "testserver", 'healthcheck.railway.app']
+    hosts.extend(h.strip() for h in os.getenv('ALLOWED_HOSTS', '').split(',') if h.strip())
+    if demo.public:
+        hosts.append('*.railway.internal')
+    app.add_middleware(TrustedHostMiddleware, allowed_hosts=hosts)
 
     @app.middleware("http")
     async def local_boundary(request: Request, call_next):
+        if demo.public and request.url.path.startswith('/api/') and request.url.path != '/api/ready':
+            if not hmac.compare_digest(request.headers.get('x-lanecoach-proxy', ''), demo.proxy_token):
+                return JSONResponse({'detail': 'Use the public LaneCoach website.'}, status_code=403)
         if request.method == "POST":
             origin = request.headers.get("origin")
             allowed = {"http://localhost:3000", "http://127.0.0.1:3000", os.getenv("FRONTEND_ORIGIN", "")}
             if (origin and origin not in allowed) or request.headers.get("x-lanecoach-client") != "browser":
                 return JSONResponse({"detail": "Use the LaneCoach app to start coaching requests."}, status_code=403)
+            if demo.public and origin != os.getenv('FRONTEND_ORIGIN'):
+                return JSONResponse({'detail': 'Invalid request origin.'}, status_code=403)
             try:
                 length = int(request.headers.get("content-length", "0"))
             except ValueError:
@@ -89,11 +101,31 @@ def create_app(store=None, catalog=None, coach_fn=answer):
         if not app.state.ready:
             raise HTTPException(503, "PostgreSQL is not ready. Start Docker/database and restart the API.")
 
+    @app.get('/api/ready')
+    def readiness():
+        ready()
+        with store.engine.connect() as connection:
+            from sqlalchemy import text
+            connection.execute(text('SELECT 1'))
+        return {'ready': True}
+
+    @app.get('/api/visitor')
+    def visitor(request: Request):
+        cookie = request.cookies.get(COOKIE)
+        owner = demo.visitor(cookie)
+        if not owner:
+            cookie = demo.create_cookie()
+            owner = demo.visitor(cookie)
+        response = JSONResponse({'csrf_token': demo.sign('csrf:' + owner)})
+        response.set_cookie(COOKIE, cookie, max_age=30*24*3600, httponly=True, secure=demo.public, samesite='lax', path='/')
+        return response
+
     @app.get("/api/health")
     def health():
         catalog.reload()
         overview = store.overview() if app.state.ready else {"matches": 0, "participants": 0, "documents": 0, "engine": store.engine.dialect.name}
         return {"database_ready": app.state.ready, "ai_configured": bool(os.getenv("OPENAI_API_KEY")),
+                'public_demo': demo.public,
                 "riot_configured": bool(os.getenv("RIOT_API_KEY")), "catalog_version": catalog.data.get("version"),
                 "model": os.getenv("OPENAI_MODEL", "gpt-4.1-mini"), **overview}
 
@@ -127,16 +159,17 @@ def create_app(store=None, catalog=None, coach_fn=answer):
         return coverage(store)
 
     @app.get("/api/sessions/{session_id}")
-    def session(session_id: str):
+    def session(session_id: str, request: Request):
         ready()
-        result = store.session(session_id)
+        result = store.session(session_id, demo.owner(request))
         if result is None:
             raise HTTPException(404, "Conversation not found")
         return result
 
     @app.post("/api/coach")
-    def coach(body: CoachRequest):
+    def coach(body: CoachRequest, request: Request):
         ready()
+        owner = demo.owner(request, csrf=True)
         if not gate.acquire(blocking=False):
             raise HTTPException(429, "Two coaching requests are already running. Try again shortly.")
         try:
@@ -146,14 +179,15 @@ def create_app(store=None, catalog=None, coach_fn=answer):
                 profile[key] = catalog.resolve(profile[key]) if profile[key] else ""
             history = []
             if body.session_id:
-                conversation = store.session(body.session_id)
+                conversation = store.session(body.session_id, owner)
                 if not conversation:
                     raise HTTPException(404, "Conversation not found")
                 if conversation["profile"] != profile:
                     raise HTTPException(409, "Your role or champion changed. Start a new conversation.")
                 history = conversation["messages"]
+            demo.reserve(store, owner)
             result = coach_fn(store, catalog, profile, body.question, history)
-            session_id = body.session_id or store.new_session(profile)
+            session_id = body.session_id or store.new_session(profile, owner)
             store.save_exchange(session_id, body.question, result["text"], result["sources"])
             return {"session_id": session_id, **result}
         except CoachingError as error:

@@ -26,3 +26,6 @@ def migrate(connection):
         connection.execute(text('CREATE INDEX IF NOT EXISTS lc_matches_patch ON lc_matches(patch)'))
         connection.execute(text('CREATE INDEX IF NOT EXISTS lc_messages_session ON lc_messages(session_id, id)'))
         connection.execute(text('INSERT INTO lc_schema_migrations(version) VALUES (2)'))
+    if 3 not in applied:
+        connection.execute(text('ALTER TABLE lc_sessions ADD COLUMN IF NOT EXISTS owner_hash VARCHAR(64)'))
+        connection.execute(text('INSERT INTO lc_schema_migrations(version) VALUES (3)'))

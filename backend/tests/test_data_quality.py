@@ -18,6 +18,7 @@ from backend.riot_api import RiotAPIError
 from backend.tests.test_platform import full_fixture
 from backend.platform.maintenance import verify_restore
 from backend.platform.coach import answer
+from backend.platform.promote import promote
 
 
 class DataQualityTests(unittest.TestCase):
@@ -59,6 +60,25 @@ class DataQualityTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             self.store.save_match(match, rows)
         self.assertEqual(self.store.overview()['matches'], 0)
+
+    def test_cloud_evidence_copy_is_idempotent_and_excludes_conversations(self):
+        match = full_fixture()
+        self.store.save_match(match, extract_players(match))
+        run_id = self.store.start_run('americas', '0' * 64, 1)
+        self.store.record_source('NA1_fixture', run_id)
+        self.store.finish_run(run_id, {'inserted': 1})
+        self.store.new_session({'role': 'TOP'})
+        target = Store('sqlite://')
+        try:
+            self.assertEqual(promote(self.store, target)['inserted'], 1)
+            self.assertEqual(promote(self.store, target)['duplicates'], 1)
+            self.assertEqual(target.overview()['participants'], 10)
+            self.assertEqual(coverage(target)['matches_without_provenance'], 0)
+            self.assertEqual(coverage(target)['regions'][0]['seed_accounts'], 1)
+            with target.engine.connect() as connection:
+                self.assertEqual(connection.execute(text('SELECT COUNT(*) FROM lc_sessions')).scalar_one(), 0)
+        finally:
+            target.engine.dispose()
 
     def test_constraints_protect_direct_writes(self):
         match = full_fixture()
@@ -159,7 +179,7 @@ class PostgreSQLMigrationTests(unittest.TestCase):
             store.initialize()
             store.initialize()
             with store.engine.connect() as connection:
-                self.assertEqual(list(connection.execute(text('SELECT version FROM lc_schema_migrations ORDER BY version')).scalars()), [1, 2])
+                self.assertEqual(list(connection.execute(text('SELECT version FROM lc_schema_migrations ORDER BY version')).scalars()), [1, 2, 3])
                 constraints = connection.execute(text("SELECT convalidated FROM pg_constraint WHERE conname IN ('lc_player_role','lc_player_id','lc_player_champion','lc_player_stats') AND conrelid='lc_players'::regclass")).scalars().all()
                 self.assertEqual(constraints, [True] * 4)
             with self.assertRaises(IntegrityError) as caught:

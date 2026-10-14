@@ -11,6 +11,8 @@ This release is a locally verified, all-role League of Legends coaching portfoli
 
 ## Still to do
 
+Railway deployment and public-demo isolation/usage controls are prepared locally; see [Railway preparation](railway-progress.md). Account connection and a verified cloud launch remain pending.
+
 Local database improvements since the initial publication are tracked in [PostgreSQL data and operations](database-operations.md). They include migration history, validated player constraints, ingestion runs and discovery provenance, measured coverage, full champion-reference sync, and a verified local backup/restore workflow. See the dated validation notes for actual dataset counts; collector limits alone do not imply coverage.
 
 See [October 14 database progress](database-progress.md) for the verified 97-match dataset, 173-champion reference corpus, tests, and remaining collection/operations work.

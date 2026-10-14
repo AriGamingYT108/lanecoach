@@ -18,7 +18,9 @@ def main():
 
     def intercept(route):
         path = route.request.url.split('/api/', 1)[1]
-        if path == 'health':
+        if path == 'visitor':
+            data = {'csrf_token': 'browser-test-token'}
+        elif path == 'health':
             data = {'database_ready': True, 'ai_configured': True, 'riot_configured': False,
                     'catalog_version': 'test-only', 'matches': 0, 'participants': 0,
                     'documents': 1, 'engine': 'test-only'}

@@ -35,9 +35,12 @@ def docker_command(*args, **kwargs):
     return result
 
 
-def fingerprint(connection):
+def fingerprint(connection, names=None):
     # Static table names from metadata, no request-supplied SQL identifiers.
-    names = sorted([*metadata.tables, 'lc_schema_migrations'])
+    allowed = {*metadata.tables, 'lc_schema_migrations'}
+    names = sorted(allowed if names is None else names)
+    if not set(names).issubset(allowed):
+        raise ValueError('Unsupported table in backup manifest')
     result = {}
     for name in names:
         row = connection.execute(text(f"SELECT COUNT(*) AS rows, md5(COALESCE(string_agg(md5(t::text), '' ORDER BY t::text), '')) AS digest FROM {name} t")).mappings().one()
@@ -83,7 +86,7 @@ def verify_restore(store, path):
             docker_command('pg_restore', '-U', user, '-d', target, '--exit-on-error', '--single-transaction',
                 '--no-owner', '--no-acl', stdin=archive, stdout=subprocess.PIPE)
         with restored.engine.connect() as connection:
-            actual = fingerprint(connection)
+            actual = fingerprint(connection, manifest['tables'])
         if actual != manifest['tables']:
             raise ValueError('Restored table fingerprints do not match backup snapshot')
         print('Restore verification passed: all table row counts and content fingerprints match.')

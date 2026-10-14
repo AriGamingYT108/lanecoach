@@ -38,7 +38,10 @@ documents = Table("lc_documents", metadata,
     Column("patch", String(20)), Column("source_url", Text), Column("source_kind", String(30), nullable=False))
 sessions = Table("lc_sessions", metadata,
     Column("id", String(40), primary_key=True), Column("profile", json_type, nullable=False),
+    Column('owner_hash', String(64)),
     Column("created", DateTime(timezone=True), nullable=False))
+request_budgets = Table('lc_request_budgets', metadata,
+    Column('bucket', String(150), primary_key=True), Column('used', Integer, nullable=False))
 messages = Table("lc_messages", metadata,
     Column("id", Integer, primary_key=True, autoincrement=True),
     Column("session_id", String(40), ForeignKey("lc_sessions.id"), nullable=False),
@@ -49,6 +52,10 @@ messages = Table("lc_messages", metadata,
 class Store:
     def __init__(self, url=None):
         url = url or os.getenv("DATABASE_URL", "postgresql+psycopg://lanecoach:local-development-only@127.0.0.1:5432/lanecoach")
+        if url.startswith('postgres://'):
+            url = 'postgresql+psycopg://' + url[len('postgres://'):]
+        elif url.startswith('postgresql://'):
+            url = 'postgresql+psycopg://' + url[len('postgresql://'):]
         options = {"pool_pre_ping": True, "hide_parameters": True}
         if url == "sqlite://":
             options.update(poolclass=StaticPool, connect_args={"check_same_thread": False})
@@ -149,19 +156,40 @@ class Store:
                     "documents": connection.execute(text("SELECT COUNT(*) FROM lc_documents")).scalar_one(),
                     "engine": self.engine.dialect.name}
 
-    def new_session(self, profile):
+    def new_session(self, profile, owner_hash=None):
         session_id = uuid4().hex
         with self.engine.begin() as connection:
-            connection.execute(sessions.insert().values(id=session_id, profile=profile, created=datetime.now(timezone.utc)))
+            connection.execute(sessions.insert().values(id=session_id, profile=profile, owner_hash=owner_hash, created=datetime.now(timezone.utc)))
         return session_id
 
-    def session(self, session_id):
+    def session(self, session_id, owner_hash=None):
         with self.engine.connect() as connection:
-            row = connection.execute(sessions.select().where(sessions.c.id == session_id)).mappings().first()
+            query = sessions.select().where(sessions.c.id == session_id)
+            if owner_hash is not None:
+                query = query.where(sessions.c.owner_hash == owner_hash)
+            row = connection.execute(query).mappings().first()
             if not row:
                 return None
             history = [dict(r) for r in connection.execute(messages.select().where(messages.c.session_id == session_id).order_by(messages.c.id)).mappings()]
         return {"id": row["id"], "profile": row["profile"], "messages": history}
+
+    def reserve_requests(self, limits):
+        """Atomic shared budget reservation; roll back every bucket on rejection."""
+        insert = postgres_insert if self.engine.dialect.name == 'postgresql' else sqlite_insert
+        class Exhausted(Exception):
+            pass
+        try:
+            with self.engine.begin() as connection:
+                for bucket, limit in sorted(limits.items()):
+                    connection.execute(insert(request_budgets).values(bucket=bucket, used=0).on_conflict_do_nothing())
+                    updated = connection.execute(request_budgets.update().where(
+                        (request_budgets.c.bucket == bucket) & (request_budgets.c.used < limit)
+                    ).values(used=request_budgets.c.used + 1).returning(request_budgets.c.bucket)).first()
+                    if not updated:
+                        raise Exhausted()
+            return True
+        except Exhausted:
+            return False
 
     def save_exchange(self, session_id, question, answer, sources):
         stamp = datetime.now(timezone.utc)

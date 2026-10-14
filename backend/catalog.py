@@ -20,6 +20,11 @@ class Catalog:
         self.cache = Path(cache)
         self.data = {"version": None, "champions": {}, "items": {}, "runes": {}}
         self.reload()
+        if self.cache == CACHE and not self.data['version']:
+            try:
+                self.data = json.loads((Path(__file__).parent / 'data/public-catalog.json').read_text(encoding='utf-8'))
+            except (OSError, ValueError):
+                pass
 
     def reload(self):
         """Observe a public knowledge sync performed by another local process."""

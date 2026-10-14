@@ -18,6 +18,8 @@ Local coaching workspace. Generated advice is shown separately from measured mat
 
 ## Docker quickstart
 
+For a recruiter-facing cloud demo, see [Railway deployment](docs/railway.md). Deployment configuration is included; account access and a verified cloud deployment are separate steps.
+
 Install and start Docker Desktop with Linux containers. From the repository root:
 
 ```powershell
